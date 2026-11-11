@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+.myenv/
+venv/
+ENV/
+env/
+.venv/
+
+# macOS / OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build and Packaging Outputs
+Outputs/mac/build/
+Outputs/mac/dist/
+build/
+dist/
+*.spec.bak
+
+# Local Audio Recordings (keep directory tracked via .gitkeep)
+recordings/*.wav
+!recordings/.gitkeep

@@ -1,0 +1,22 @@
+accent_classifier_project/
+│
+├── main.py                   # The entry point that simply launches the app
+├── config.json               # Stores your admin password hash and file paths
+│
+├── ui/                       # Handles all CustomTkinter visuals
+│   ├── __init__.py
+│   ├── root_window.py        # The master class that stacks the frames
+│   ├── frame_home.py         # Screen 1: The Start Menu
+│   ├── frame_recording.py    # Screen 2: The Waveform Canvas
+│   ├── frame_result.py       # Screen 3: The Prediction Output
+│   └── popup_admin.py        # The secure settings dialog
+│
+├── audio/                    # Handles the microphone and threads
+│   ├── __init__.py
+│   └── capture.py            # The sounddevice background worker logic
+│
+├── ml_core/                  # Handles the AI and extraction
+│   ├── __init__.py
+│   ├── feature_extraction.py # Your MFCC, ZCR, RMS scripts
+│   ├── inference.py          # The script that loads the model and predicts
+│   └── model_77.joblib       # Your trained SVM brain

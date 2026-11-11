@@ -9,18 +9,61 @@ from pathlib import Path
 
 # ==============================================================================
 # HARDWARE CONFIGURATION
-# Set to 2 for the current macOS testing setup.
-# When reverting/deploying to the Raspberry Pi with a USB microphone, update this
-# index or set to None to use system default input.
+# Options:
+#   "auto" : Automatically selects Blue Yeti / USB external mic if plugged in,
+#            otherwise uses the system default input device.
+#   None   : Strictly uses the OS system default input device.
+#   int    : An explicit device index (e.g., 0 for Yeti, 2 for MacBook Mic).
 # ==============================================================================
-DEFAULT_AUDIO_DEVICE = 2
+DEFAULT_AUDIO_DEVICE = "auto"
+
+
+def resolve_audio_input_device(preference=DEFAULT_AUDIO_DEVICE):
+    """
+    Detects and returns the best input device index and descriptive name.
+    Prioritizes connected external mics (Yeti, Blue, USB) when set to 'auto'.
+    """
+    try:
+        devices = sd.query_devices()
+        default_in = sd.default.device[0]
+
+        # 1. Explicit integer index passed
+        if isinstance(preference, int):
+            dev_name = devices[preference]['name'] if preference < len(devices) else f"Device {preference}"
+            return preference, dev_name
+
+        # 2. String search for a specific device keyword
+        if isinstance(preference, str) and preference.lower() != "auto":
+            for idx, d in enumerate(devices):
+                if d['max_input_channels'] > 0 and preference.lower() in d['name'].lower():
+                    return idx, d['name']
+
+        # 3. Auto mode: Look for external mics (Yeti, Blue, USB) first
+        for idx, d in enumerate(devices):
+            if d['max_input_channels'] > 0:
+                name_lower = d['name'].lower()
+                if any(k in name_lower for k in ["yeti", "blue", "usb"]):
+                    return idx, d['name']
+
+        # 4. Fallback: OS System Default input device
+        if default_in is not None and default_in >= 0:
+            return default_in, f"{devices[default_in]['name']} (System Default)"
+
+        return None, "System Default"
+
+    except Exception as e:
+        print(f"Warning: Error querying audio devices: {e}")
+        return None, "System Default"
+
 
 class AudioRecorder:
     def __init__(self, ui_queue, device=DEFAULT_AUDIO_DEVICE, sample_rate=48000, chunk_size=1024, save_dir=None):
         self.ui_queue = ui_queue
         self.sample_rate = sample_rate
         self.chunk_size = chunk_size
-        self.device = device
+        self.preferred_device = device
+        self.active_device_index = None
+        self.active_device_name = None
         
         # Permanent recordings archive directory
         if save_dir is None:
@@ -56,18 +99,25 @@ class AudioRecorder:
         self.is_recording = True
         self.audio_frames = []
         
+        # Resolve device to ensure external microphone (e.g., Blue Yeti) is selected
+        device_idx, device_name = resolve_audio_input_device(self.preferred_device)
+        self.active_device_index = device_idx
+        self.active_device_name = device_name
+        
+        print(f"🎤 Active Microphone: [Index {device_idx}] '{device_name}' (Sample Rate: {self.sample_rate}Hz)")
+
         # Start the sounddevice input stream with fallback if device index is unavailable
         try:
             self.stream = sd.InputStream(
                 samplerate=self.sample_rate,
                 channels=1,
                 blocksize=self.chunk_size,
-                device=self.device,
+                device=self.active_device_index,
                 callback=self.audio_callback
             )
             self.stream.start()
         except Exception as e:
-            print(f"Warning: Audio device {self.device} unavailable ({e}). Falling back to system default input.")
+            print(f"Warning: Device {device_idx} failed ({e}). Falling back to system default input.")
             self.stream = sd.InputStream(
                 samplerate=self.sample_rate,
                 channels=1,

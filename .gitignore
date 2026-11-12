@@ -21,8 +21,10 @@ ehthumbs.db
 Thumbs.db
 
 # Build and Packaging Outputs
-Outputs/mac/build/
-Outputs/mac/dist/
+Outputs/**/build/
+Outputs/**/dist/
+Outputs/**/.pyinstaller/
+Outputs/**/.build_env/
 build/
 dist/
 *.spec.bak

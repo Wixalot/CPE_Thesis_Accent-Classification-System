@@ -1,0 +1,70 @@
+name: Build Standalone Executables (Windows, Linux/Pi, macOS)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  build-executables:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            artifact_name: AccentClassifier-Windows.exe
+            run_build: |
+              cd Outputs/windows
+              python -m pip install --upgrade pip
+              pip install -r ../../requirements.txt pyinstaller
+              pyinstaller --noconfirm --clean main_windows.spec
+              copy dist\AccentClassifier.exe ..\..\..\AccentClassifier-Windows.exe
+            upload_path: AccentClassifier-Windows.exe
+
+          - os: ubuntu-latest
+            platform: linux
+            artifact_name: AccentClassifier-Linux-x64
+            run_build: |
+              sudo apt-get update && sudo apt-get install -y libportaudio2 libasound2-dev libsndfile1 python3-tk
+              cd Outputs/raspberry_pi
+              python -m pip install --upgrade pip
+              pip install -r ../../requirements.txt pyinstaller
+              pyinstaller --noconfirm --clean main_rpi.spec
+              cp dist/AccentClassifier ../../../AccentClassifier-Linux-x64
+            upload_path: AccentClassifier-Linux-x64
+
+          - os: macos-latest
+            platform: macos
+            artifact_name: AccentClassifier-macOS.zip
+            run_build: |
+              cd Outputs/mac
+              python -m pip install --upgrade pip
+              pip install -r ../../requirements.txt pyinstaller
+              pyinstaller --noconfirm --clean main.spec
+              cd dist && zip -r ../../../AccentClassifier-macOS.zip main.app
+            upload_path: AccentClassifier-macOS.zip
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Build Standalone Executable
+        shell: bash
+        run: ${{ matrix.run_build }}
+
+      - name: Upload Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.upload_path }}
+          retention-days: 14

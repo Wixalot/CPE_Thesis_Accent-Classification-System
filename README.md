@@ -1,4 +1,4 @@
-# Real-Time Accent Classification System
+# Accent Classification Using Mel-Frequency Cepstral Coefficients and Support Vector Machine on Raspberry Pi
 
 An edge-deployable Machine Learning system for classifying regional Filipino English accents (**Tagalog**, **Ilocano**, and **Bisaya**) using Mel-Frequency Cepstral Coefficients (MFCCs) and Support Vector Machines (SVM). Developed for the Computer Engineering (CpE) Thesis project and published at **ADMIT 2026**.
 

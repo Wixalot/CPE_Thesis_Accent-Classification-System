@@ -37,6 +37,26 @@ class ResultFrame(ctk.CTkFrame):
         )
         self.result_label.pack(pady=(0, 30))
 
+        # --- Assessment Evidence ---
+        self.scores_label = ctk.CTkLabel(
+            self.center_container,
+            text="",
+            font=(FONT_FAMILY, 15),
+            text_color=TEXT_COLOR,
+            justify="center",
+        )
+        self.scores_label.pack(pady=(0, 8))
+
+        self.quality_label = ctk.CTkLabel(
+            self.center_container,
+            text="",
+            font=(FONT_FAMILY, 14),
+            text_color=TEXT_COLOR,
+            wraplength=620,
+            justify="center",
+        )
+        self.quality_label.pack(pady=(0, 20))
+
         # --- Try Again Button ---
         self.retry_btn = ctk.CTkButton(
             self.center_container,
@@ -68,6 +88,9 @@ class ResultFrame(ctk.CTkFrame):
             
             self.title_label.configure(font=(FONT_FAMILY, new_title_size, "bold"))
             self.result_label.configure(font=(FONT_FAMILY, new_result_size, "bold"))
+            self.scores_label.configure(font=(FONT_FAMILY, max(10, min(16, int(width * 0.02)))))
+            self.quality_label.configure(font=(FONT_FAMILY, max(10, min(15, int(width * 0.018)))))
+            self.quality_label.configure(wraplength=max(260, int(width * 0.78)))
 
             # Scale Button
             new_btn_font = max(10, min(24, int(width * 0.03)))
@@ -79,6 +102,26 @@ class ResultFrame(ctk.CTkFrame):
                 width=new_btn_w, height=new_btn_h
             )
 
-    def update_result(self, predicted_accent):
-        """Public method called by the AI to inject the final prediction."""
-        self.result_label.configure(text=predicted_accent.upper())
+    def update_result(self, predicted_accent, class_scores=None, quality=None):
+        """Show the native SVM result and its non-probability decision margins."""
+        self.result_label.configure(text=f"{predicted_accent.upper()} ACCENT")
+
+        if class_scores:
+            score_text = "  |  ".join(
+                f"{'✓ ' if label == predicted_accent else ''}{label}: {score:.3f}"
+                for label, score in class_scores.items()
+            )
+            self.scores_label.configure(
+                text=f"✓ Native SVM selection; decision margins are not probabilities\n{score_text}"
+            )
+        else:
+            self.scores_label.configure(text="")
+
+        message = (quality or {}).get("message", "")
+        self.quality_label.configure(text=message)
+
+    def update_rejected(self, message):
+        """Show a retake instruction when the audio is too noisy to assess."""
+        self.result_label.configure(text="ASSESSMENT UNAVAILABLE")
+        self.scores_label.configure(text="No accent is shown for unreliable audio.")
+        self.quality_label.configure(text=message)

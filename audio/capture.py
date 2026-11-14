@@ -4,6 +4,7 @@ import soundfile as sf
 import numpy as np
 import threading
 import queue
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -78,6 +79,7 @@ class AudioRecorder:
         self.audio_frames = []
         self.timer = None
         self.last_saved_file = None
+        self.last_recording_stem = None
 
     def audio_callback(self, indata, frames, time_info, status):
         """This runs continuously in the background while recording."""
@@ -155,7 +157,10 @@ class AudioRecorder:
             
             # Generate timestamped archive filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            file_path = self.save_dir / f"recording_{timestamp}.wav"
+            self.last_recording_stem = f"recording_{timestamp}"
+            raw_dir = self.save_dir / "raw"
+            raw_dir.mkdir(parents=True, exist_ok=True)
+            file_path = raw_dir / f"{self.last_recording_stem}.wav"
             
             # Save strictly as uncompressed 16-bit PCM WAV at native sample rate
             sf.write(str(file_path), full_audio, self.sample_rate, subtype='PCM_16')
@@ -165,3 +170,30 @@ class AudioRecorder:
             return str(file_path)
             
         return None
+
+    def save_processed_audio(self, audio_data, sample_rate, filters_applied):
+        """Save an accepted live-assessment sample beside its raw recording.
+
+        Processed audio is stored separately so the original microphone capture
+        remains an immutable audit copy.  The filename states exactly which
+        conservative filters were used for the saved assessment input.
+        """
+        if audio_data is None or not self.last_recording_stem:
+            return None
+
+        filter_suffixes = [
+            re.sub(r"[^a-zA-Z0-9_-]+", "_", str(name)).strip("_")
+            for name in filters_applied
+        ]
+        filter_suffixes = [name for name in filter_suffixes if name]
+        suffix = "_".join(filter_suffixes) if filter_suffixes else "unmodified"
+
+        processed_dir = self.save_dir / "processed"
+        processed_dir.mkdir(parents=True, exist_ok=True)
+        file_path = processed_dir / f"{self.last_recording_stem}_{suffix}.wav"
+
+        # PCM_16 keeps the processed recording broadly playable on macOS,
+        # Windows, and Raspberry Pi OS, matching the raw archive format.
+        sf.write(str(file_path), audio_data, sample_rate, subtype="PCM_16")
+        print(f"🎛️ Processed live recording saved to: {file_path}")
+        return str(file_path)

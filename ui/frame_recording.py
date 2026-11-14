@@ -9,6 +9,7 @@ import librosa
 from .theme import *
 from audio.capture import AudioRecorder 
 from ml_core.inference import AccentClassifier
+from ml_core.audio_preprocessing import prepare_audio_for_assessment
 
 class RecordingFrame(ctk.CTkFrame):
     def __init__(self, parent, controller):
@@ -118,7 +119,26 @@ class RecordingFrame(ctk.CTkFrame):
                 # 1. Load the recorded file strictly at 22,050 Hz to match training and upload pipeline
                 audio_data, _ = librosa.load(saved_file_path, sr=22050, mono=True)
                 
-                # 2. Feed it directly to the AI with scores
+                # 2. Apply the same conservative noise handling used for WAV
+                # uploads so both assessment routes have identical inputs.
+                audio_data, quality = prepare_audio_for_assessment(audio_data, sample_rate=22050)
+                if audio_data is None:
+                    result_screen.update_rejected(quality["message"])
+                    self.controller.show_frame("ResultFrame")
+                    return
+
+                # Save every accepted live assessment separately from its raw
+                # microphone archive.  The filename documents the filters that
+                # produced the exact input supplied to the classifier.
+                processed_file_path = self.recorder.save_processed_audio(
+                    audio_data,
+                    sample_rate=22050,
+                    filters_applied=quality["filters_applied"],
+                )
+                if processed_file_path:
+                    print(f"Processed assessment input: {processed_file_path}")
+
+                # 3. Feed it to the AI with scores.
                 final_prediction, class_scores = self.classifier.predict_with_scores(
                     audio_data,
                     sample_rate=22050,
@@ -127,17 +147,21 @@ class RecordingFrame(ctk.CTkFrame):
                 print("Live class scores:")
                 for label, score in class_scores.items():
                     print(f"  {label}: {score:.6f}")
-                print(f"Chosen class: {final_prediction}")
+                print(f"Chosen class (native SVM vote): {final_prediction}")
             except Exception as e:
                 print(f"Error processing live recording: {e}")
-                final_prediction = "ERROR: PROCESSING FAILED"
+                result_screen.update_rejected("Assessment could not be completed. Please record again.")
+                self.controller.show_frame("ResultFrame")
+                return
         else:
-            final_prediction = "NO AUDIO DETECTED"
+            result_screen.update_rejected("No recording was saved. Please try again.")
+            self.controller.show_frame("ResultFrame")
+            return
         
-        # 3. Inject the real prediction into the screen
-        result_screen.update_result(f"{final_prediction} ACCENT")
+        # 4. Inject the model result and supporting assessment details.
+        result_screen.update_result(final_prediction, class_scores, quality)
         
-        # 4. Bring the Result Screen to the front
+        # 5. Bring the Result Screen to the front
         self.controller.show_frame("ResultFrame")
 
     def update_waveform(self):

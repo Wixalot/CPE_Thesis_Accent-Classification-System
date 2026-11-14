@@ -77,6 +77,9 @@ class AccentClassifier:
         features_reshaped = features.reshape(1, -1)
         features_scaled = self.scaler.transform(features_reshaped)
 
+        # Keep the model's native one-vs-one vote result as the source of
+        # truth.  These decision values are SVM margins, not probabilities;
+        # selecting their raw maximum can disagree with predict() on ties.
         prediction = self.model.predict(features_scaled)[0]
         decision_scores = self.model.decision_function(features_scaled)
         score_values = decision_scores[0] if getattr(decision_scores, "ndim", 0) > 1 else decision_scores

@@ -64,20 +64,25 @@ class UploadFrame(ctk.CTkFrame):
             # 1. Load the file strictly at 22050 Hz to match your training data perfectly
             audio_data, _ = librosa.load(file_path, sr=22050, mono=True)
             
-            # 2. Feed it directly to the AI with scores
+            # 2. Preserve the published upload protocol exactly.  Uploaded
+            # WAV files are classified directly after standard decoding; noise
+            # handling is intentionally reserved for live microphone input.
             final_prediction, class_scores = self.classifier.predict_with_scores(audio_data, sample_rate=22050)
-            print("Live class scores:")
+            print("Upload class scores:")
             for label, score in class_scores.items():
                 print(f"  {label}: {score:.6f}")
-            print(f"Chosen class: {final_prediction}")
+            print(f"Chosen class (native SVM vote): {final_prediction}")
             
-            # 3. Route to Result Screen
+            # 3. Route to Result Screen with the native model decision.
             result_screen = self.controller.frames["ResultFrame"]
-            result_screen.update_result(f"{final_prediction} ACCENT")
+            result_screen.update_result(final_prediction, class_scores)
             self.controller.show_frame("ResultFrame")
             
         except Exception as e:
             print(f"Error processing uploaded file: {e}")
+            result_screen = self.controller.frames["ResultFrame"]
+            result_screen.update_rejected("The selected WAV file could not be assessed. Please choose another recording.")
+            self.controller.show_frame("ResultFrame")
 
     def dynamic_resize(self, event):
         """Scales the circle button and text."""

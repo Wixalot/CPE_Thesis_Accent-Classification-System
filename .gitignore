@@ -31,4 +31,5 @@ dist/
 
 # Local Audio Recordings (keep directory tracked via .gitkeep)
 recordings/*.wav
+recordings/**/*.wav
 !recordings/.gitkeep
